@@ -1,0 +1,373 @@
+QURAN KELUARGA - PROGRESS & CONVERSATION SUMMARY
+Tanggal: 29 Mei 2026
+
+Tujuan proyek
+=============
+Membuat aplikasi Quran sederhana, bersih, tanpa iklan, dengan fitur utama shared bookmark/progress keluarga.
+
+Masalah utama yang ingin diselesaikan:
+- Keluarga biasa mengaji bersama setelah Subuh.
+- Kalau ada anggota keluarga yang tidak di rumah, progress bacaan bersama jadi tidak jelas.
+- Ingin ada bookmark/progress keluarga yang bisa diupdate oleh satu orang dan langsung terlihat oleh semua anggota.
+
+Keputusan awal
+==============
+1. Shared bookmark real-time itu memungkinkan.
+2. Untuk sync antar device tetap perlu backend/database online.
+3. Untuk skala keluarga kecil bisa pakai free tier seperti Supabase atau Firebase.
+4. Fokus awal bisa Android dulu.
+5. iOS tidak perlu native app dulu karena Apple lebih ribet/mahal; iOS bisa pakai web/PWA.
+6. Android bisa dibuat sebagai APK.
+7. Android APK dan iOS PWA tetap bisa sync selama pakai backend/database yang sama.
+
+Arsitektur sederhana
+====================
+Android APK ----\
+                 > Supabase/Firebase -> shared family bookmark/progress
+iOS Web/PWA ----/
+
+Rekomendasi stack awal
+======================
+Frontend utama:
+- Next.js / React / TypeScript / Tailwind CSS
+
+UI prototype:
+- v0.app
+- shadcn/ui
+
+Backend sync nanti:
+- Supabase atau Firebase
+
+Android APK nanti:
+- Bisa wrapper dari PWA pakai Capacitor
+- Atau nanti rebuild native/cross-platform kalau perlu
+
+Monetisasi tanpa iklan
+======================
+User ingin publish Android dan tidak mau iklan.
+
+Model monetisasi yang cocok:
+1. Gratis + premium sekali beli
+   - Gratis: baca Quran, terjemahan, bookmark pribadi
+   - Premium: shared bookmark keluarga, sync keluarga, invite anggota, riwayat progress
+
+2. Lifetime Family Plan
+   - Sekali bayar untuk satu keluarga
+   - Cocok karena fitur sync memang butuh server
+
+3. Donasi sukarela
+   - Paling aman secara etika, tapi income tidak stabil
+
+Catatan penting untuk aplikasi Quran:
+- Jangan asal ambil teks Quran/terjemahan dari aplikasi lain.
+- Pastikan sumber teks Quran valid.
+- Pastikan lisensi terjemahan jelas.
+- Hindari tracking berlebihan.
+- Data keluarga/progress harus private.
+- Aplikasi harus terasa amanah, bersih, dan tidak agresif secara komersial.
+
+Prompt utama untuk v0.app
+=========================
+Create a high-fidelity mobile-first UI prototype for a minimalist Quran reading app focused on family shared reading progress.
+
+App concept:
+A clean, ad-free Quran app for families who read together after Subuh. The key feature is a shared family bookmark: when one family member updates the current reading position, everyone in the family sees the same updated progress.
+
+Target:
+- Android-first mobile app design
+- Should also work as a responsive PWA
+- Focus on UI/UX only for now
+- Use mock data only
+- Do not implement real authentication or backend yet
+- Do not fabricate Quran verses. Use clearly marked placeholder Arabic text for Quran content.
+
+Tech/style:
+- Use Next.js, React, TypeScript, Tailwind CSS, and shadcn/ui
+- Mobile-first layout around 390px width
+- Elegant, modern, calm, and straightforward
+- Minimal Islamic-inspired visual language, not decorative or busy
+- Warm ivory background, deep emerald accents, soft gold highlight, muted gray text
+- Rounded cards, subtle shadows, generous spacing
+- Typography should feel premium and readable
+- Arabic reading text should be large, centered or right-aligned, with strong readability
+- UI text should be in Indonesian
+
+Design mood:
+Calm after-Subuh reading, family warmth, focused worship, no distractions, no ads, no clutter.
+
+Core screens:
+1. Welcome / onboarding
+   - App name: “Quran Keluarga”
+   - Short tagline: “Pantau bacaan keluarga, bersama-sama.”
+   - Primary action: “Mulai”
+   - Secondary action: “Gabung Keluarga”
+
+2. Home dashboard
+   - Greeting: “Assalamu’alaikum”
+   - Shared family progress card:
+     - Family name: “Keluarga Hasan”
+     - Current progress: “Al-Baqarah · Ayat 45”
+     - Last updated by: “Diupdate oleh Ibu, 05:42”
+     - Button: “Lanjut Baca”
+   - Small cards for:
+     - Bookmark pribadi
+     - Target khatam keluarga
+     - Anggota aktif
+   - Recent activity list:
+     - “Ayah memindahkan progress ke Al-Baqarah 45”
+     - “Aisyah menandai An-Nisa 12”
+
+3. Quran reader screen
+   - Top bar with surah name and verse range
+   - Large Arabic placeholder text, not real Quran text
+   - Indonesian translation placeholder below
+   - Clean verse-by-verse layout
+   - Floating or bottom action bar with:
+     - Bookmark pribadi
+     - Update progress keluarga
+     - Share
+   - Highlight the currently shared family bookmark verse with a subtle emerald/gold marker
+
+4. Update shared bookmark modal/sheet
+   - Clear confirmation:
+     “Update progress keluarga ke Al-Baqarah ayat 45?”
+   - Show warning text:
+     “Semua anggota keluarga akan melihat progress terbaru.”
+   - Buttons:
+     - “Batal”
+     - “Update Progress”
+
+5. Family screen
+   - Family progress overview
+   - List of family members with last seen / last update
+   - Invite code card:
+     “Kode keluarga: HSN-204”
+   - Button: “Undang Anggota”
+
+6. Settings screen
+   - Font size control
+   - Translation toggle
+   - Theme: Light / Sepia / Dark
+   - Account section
+   - No ads statement: “Aplikasi ini bebas iklan.”
+
+Navigation:
+- Bottom navigation with 4 tabs:
+  - Beranda
+  - Baca
+  - Keluarga
+  - Pengaturan
+
+Important UX requirements:
+- The main shared bookmark must be visible immediately on the home screen
+- Updating family progress should feel intentional, not accidental
+- Avoid overwhelming users with too many features
+- Make the app feel trustworthy, peaceful, and polished
+- Design for one-handed mobile use
+- Include loading, empty, and success states where appropriate
+
+Deliverable:
+Build a polished interactive prototype with all screens connected using mock state. Prioritize visual quality, mobile UX, and clarity over backend functionality.
+
+Follow-up prompt untuk refine UI
+===============================
+Refine the UI to feel more premium and less generic.
+
+Make the design calmer, more elegant, and more focused on Quran reading. Reduce visual clutter. Improve spacing, typography, and hierarchy. The shared family bookmark should feel like the emotional center of the app.
+
+Keep the color palette warm ivory, deep emerald, muted gold, and soft gray. Avoid loud gradients, excessive icons, and decorative Islamic patterns. Use subtle geometry only if it improves the design.
+
+Improve the Quran reader screen so it feels comfortable for long reading sessions. Make the Arabic placeholder text more readable, increase line height, and make the translation secondary but still clear.
+
+Keep all text in Indonesian.
+
+Follow-up prompt untuk Android feel
+===================================
+Make this feel more like a native Android app while still implemented as a responsive web/PWA.
+
+Optimize for a 390x844 mobile viewport. Use a sticky bottom navigation, safe-area spacing, thumb-friendly buttons, native-feeling bottom sheets, and smooth card-based transitions.
+
+Avoid desktop-style layouts. The app should feel natural when opened as an Android APK wrapper later.
+
+Follow-up prompt untuk premium tanpa iklan
+==========================================
+Add a subtle premium upgrade screen without making the app feel commercial.
+
+Free features:
+- Read Quran
+- Translation
+- Personal bookmark
+
+Premium Family features:
+- Shared family bookmark
+- Family progress sync
+- Invite family members
+- Progress history
+
+Tone should be respectful, simple, and non-aggressive. No ads, no dark patterns, no pressure. Use Indonesian copy.
+
+Prototype repo
+==============
+GitHub repo:
+https://github.com/piipapoy/v0-quran-keluarga-prototype
+
+Status akses:
+- Awalnya private/404.
+- Setelah dibuat public, repo berhasil di-clone.
+
+Struktur prototype yang ditemukan
+=================================
+Repo adalah Next.js app hasil v0.
+
+File/folder penting:
+- app/page.tsx
+- app/layout.tsx
+- app/globals.css
+- lib/app-context.tsx
+- components/bottom-nav.tsx
+- components/screens/welcome-screen.tsx
+- components/screens/home-screen.tsx
+- components/screens/reader-screen.tsx
+- components/screens/family-screen.tsx
+- components/screens/settings-screen.tsx
+
+Review prototype
+================
+Overall:
+- Prototype sudah bagus untuk validasi ide.
+- Flow utama sudah terbaca: buka app -> lihat progress keluarga -> lanjut baca -> update bookmark keluarga -> lihat anggota/aktivitas.
+- Visual direction cocok: warm, calm, emerald/ivory, mobile-first.
+- Home screen langsung menonjolkan shared family progress, ini tepat.
+- Reader punya action penting: bookmark pribadi, update keluarga, share.
+- Update progress pakai confirmation sheet, jadi tidak gampang kepencet.
+- Struktur kode rapi untuk prototype: screen dipisah dan state mock ada di context.
+
+Yang paling kuat
+================
+1. Emotional center jelas: shared family progress.
+2. UI mobile-first dan cukup elegan.
+3. Bahasa Indonesia sudah dipakai di UI.
+4. Ada disclaimer bahwa teks Arab adalah placeholder, bukan ayat Quran asli.
+5. Bottom navigation sudah sederhana: Beranda, Baca, Keluarga, Pengaturan.
+
+Masalah penting yang ditemukan
+==============================
+1. Bookmark keluarga di reader masih hardcoded
+   File: components/screens/reader-screen.tsx
+   Detail:
+   - PLACEHOLDER_VERSES punya isCurrentBookmark: true di ayat 45.
+   - Setelah user update progress ke ayat lain, marker “Bookmark Keluarga” tetap di ayat 45.
+   - Harusnya indicator dibandingkan dengan state.currentAyat, bukan flag static.
+
+2. PWA belum beneran siap
+   File: app/layout.tsx
+   Detail:
+   - metadata manifest mengarah ke /manifest.json.
+   - Tapi di public/ tidak ada manifest.json.
+   - Untuk target PWA/Android wrapper, perlu manifest, icon sizes, service worker/offline strategy.
+
+3. Build/type safety masih prototype-level
+   File: next.config.mjs
+   Detail:
+   - Ada ignoreBuildErrors: true.
+   - Ini sebaiknya dimatikan sebelum masuk development serius.
+   - npm run lint gagal karena eslint belum tersedia.
+   - Typecheck menemukan error di beberapa generated components/ui/*.
+
+4. Progress khatam masih salah/hardcoded
+   File: components/screens/family-screen.tsx
+   Detail:
+   - currentProgress = 45 + 286 tidak akurat.
+   - Nanti perlu data canonical: jumlah ayat per surah, index global ayat, juz, halaman, dll.
+
+5. Join family belum ada flow
+   File: components/screens/welcome-screen.tsx
+   Detail:
+   - Tombol Mulai dan Gabung Keluarga sama-sama cuma masuk home.
+   - Untuk MVP, minimal perlu screen input kode keluarga.
+
+Verification notes
+==================
+Commands attempted:
+- git clone: berhasil setelah repo public
+- pnpm install: gagal karena pnpm tidak tersedia di environment
+- npm install: berhasil setelah retry lebih lama
+- npm run build: gagal karena masalah binary execution di Termux/environment
+- node node_modules/next/dist/bin/next build: gagal karena Next mencoba download SWC dan mencari pnpm
+- node node_modules/typescript/bin/tsc --noEmit: jalan, tapi menemukan type errors di generated shadcn/ui files
+
+Catatan:
+- Kegagalan build sebagian besar karena environment Termux dan dependency/tooling, bukan pasti karena app tidak bisa jalan di environment normal.
+- Tetap ada isu typecheck nyata yang perlu dibereskan sebelum production.
+
+Prioritas next step
+===================
+1. Fix state bug di reader:
+   - Family bookmark marker harus mengikuti state.currentAyat.
+
+2. Tambah onboarding flow:
+   - Buat Keluarga
+   - Gabung Keluarga
+   - Input nama pengguna
+   - Input/kode keluarga
+
+3. Tambah PWA foundation:
+   - public/manifest.json
+   - app icons ukuran lengkap
+   - theme color
+   - offline strategy basic
+
+4. Bersihkan technical foundation:
+   - Matikan ignoreBuildErrors
+   - Tambah konfigurasi lint yang benar
+   - Hapus generated components/ui yang tidak dipakai jika perlu
+   - Pastikan npm run build dan typecheck pass
+
+5. Rancang data model backend:
+   - users
+   - families
+   - family_members
+   - family_progress
+   - personal_bookmarks
+   - activity_logs
+
+6. Pilih backend:
+   - Supabase: enak untuk Postgres, realtime, auth, RLS
+   - Firebase: enak untuk realtime dan mobile, tapi struktur data NoSQL
+
+Rekomendasi saat lanjut
+=======================
+Untuk MVP serius, pilih jalur:
+- Next.js PWA dulu
+- Supabase untuk auth + database + realtime
+- Setelah flow stabil, wrap ke Android APK pakai Capacitor
+
+MVP fitur minimum
+=================
+1. Baca Quran + terjemahan
+2. Bookmark pribadi
+3. Buat/gabung keluarga
+4. Shared family progress
+5. Realtime update progress keluarga
+6. Riwayat aktivitas sederhana
+7. Settings: font size, terjemahan, theme
+8. Tanpa iklan
+
+Catatan produk
+==============
+Positioning app:
+“Quran app untuk keluarga yang ingin menjaga progress ngaji bersama.”
+
+Nilai unik:
+- Bukan sekadar app Quran individual.
+- Fokus ke keluarga, shared progress, dan kebiasaan ngaji bareng.
+
+Tone desain:
+- Minimalis
+- Modern
+- Elegant
+- Straightforward
+- Calm
+- Trustworthy
+- Tidak ramai
+- Tidak terasa komersial
