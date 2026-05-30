@@ -7,7 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
-import com.familyquran.app.core.theme.QuranKeluargaTheme
+import com.familyquran.app.core.theme.RainaraQuranTheme
 import com.familyquran.app.core.theme.QuranThemeColors
 
 class MainActivity : ComponentActivity() {
@@ -15,12 +15,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            QuranKeluargaTheme {
+            RainaraQuranTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = QuranThemeColors.ivory
                 ) {
-                    QuranKeluargaApp()
+                    RainaraQuranApp()
                 }
             }
         }

@@ -25,7 +25,7 @@ private val QuranLightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun QuranKeluargaTheme(content: @Composable () -> Unit) {
+fun RainaraQuranTheme(content: @Composable () -> Unit) {
     val view = LocalView.current
 
     if (!view.isInEditMode) {

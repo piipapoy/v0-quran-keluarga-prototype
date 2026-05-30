@@ -3,14 +3,16 @@
 
     <application
         android:allowBackup="true"
+        android:icon="@drawable/rainara"
         android:label="@string/app_name"
+        android:roundIcon="@drawable/rainara"
         android:supportsRtl="true"
-        android:theme="@style/Theme.QuranKeluarga">
+        android:theme="@style/Theme.RainaraQuran">
 
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.QuranKeluarga">
+            android:theme="@style/Theme.RainaraQuran">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

@@ -1,4 +1,4 @@
-# Quran Keluarga
+# Rainara Quran
 
 Native Android prototype for a calm, ad-free Quran reading app centered on shared family reading progress.
 

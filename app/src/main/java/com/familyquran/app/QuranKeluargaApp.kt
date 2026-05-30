@@ -1,11 +1,16 @@
 package com.familyquran.app
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -22,42 +27,59 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.familyquran.app.auth.AuthManager
+import com.familyquran.app.auth.FAMILY_USERNAME
+import com.familyquran.app.auth.FamilyAccount
+import com.familyquran.app.auth.FamilyAccounts
 import com.familyquran.app.core.theme.QuranThemeColors
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -95,6 +117,11 @@ private data class VersePlaceholder(
     val number: Int,
     val arabic: String,
     val translation: String
+)
+
+private data class ToastMessage(
+    val text: String,
+    val isError: Boolean = false
 )
 
 private data class QuranAppState(
@@ -153,147 +180,530 @@ private val placeholderVerses = listOf(
 )
 
 @Composable
-fun QuranKeluargaApp() {
+fun RainaraQuranApp() {
+    val authManager = remember { AuthManager() }
+    var currentUser by remember { mutableStateOf(authManager.currentUser) }
+    var selectedMember by remember { mutableStateOf<FamilyAccount?>(null) }
     var state by remember { mutableStateOf(QuranAppState()) }
     var screen by remember { mutableStateOf(AppScreen.Home) }
     var selectedVerse by remember { mutableIntStateOf(state.currentAyat) }
-    var toastMessage by remember { mutableStateOf<String?>(null) }
+    var toast by remember { mutableStateOf<ToastMessage?>(null) }
 
-    LaunchedEffect(toastMessage) {
-        if (toastMessage != null) {
+    DisposableEffect(authManager) {
+        val listener = FirebaseAuth.AuthStateListener { currentUser = it.currentUser }
+        authManager.addAuthStateListener(listener)
+        onDispose { authManager.removeAuthStateListener(listener) }
+    }
+
+    LaunchedEffect(toast) {
+        if (toast != null) {
             delay(2200)
-            toastMessage = null
+            toast = null
         }
     }
 
     Box(modifier = Modifier.fillMaxSize().background(QuranThemeColors.ivory)) {
-        if (!state.isOnboarded) {
-            WelcomeScreen(
-                onStart = { state = state.copy(isOnboarded = true) },
-                onJoinFamily = { state = state.copy(isOnboarded = true) }
-            )
-        } else {
-            Scaffold(
-                containerColor = QuranThemeColors.ivory,
-                bottomBar = {
-                    QuranBottomBar(
-                        currentScreen = screen,
-                        onScreenSelected = { screen = it }
-                    )
-                }
-            ) { paddingValues ->
-                Box(modifier = Modifier.padding(paddingValues)) {
-                    when (screen) {
-                        AppScreen.Home -> HomeScreen(
-                            state = state,
-                            onContinueReading = {
-                                selectedVerse = state.currentAyat
-                                screen = AppScreen.Reader
-                            },
-                            onFamily = { screen = AppScreen.Family }
-                        )
-                        AppScreen.Reader -> ReaderScreen(
-                            state = state,
-                            selectedVerse = selectedVerse,
-                            onSelectedVerseChanged = { selectedVerse = it },
-                            onBack = { screen = AppScreen.Home },
-                            onSetPersonalBookmark = {
-                                state = state.copy(
-                                    personalBookmarkSurah = state.currentSurah,
-                                    personalBookmarkAyat = selectedVerse
+        Crossfade(
+            targetState = when {
+                !state.isOnboarded -> 0
+                currentUser == null -> 1
+                selectedMember == null -> 2
+                else -> 3
+            },
+            animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+            label = "screen_transition"
+        ) { screenIndex ->
+            when (screenIndex) {
+                0 -> WelcomeScreen(
+                    onStart = { state = state.copy(isOnboarded = true) }
+                )
+                1 -> LoginScreen(
+                    authManager = authManager,
+                    onToast = { toast = ToastMessage(it) },
+                    onError = { toast = ToastMessage(it, isError = true) }
+                )
+                2 -> MemberPickerScreen(
+                    onMemberPicked = { selectedMember = it },
+                    onLogout = { authManager.signOut() }
+                )
+                3 -> {
+                    Scaffold(
+                        containerColor = QuranThemeColors.ivory,
+                        bottomBar = {
+                            QuranBottomBar(
+                                currentScreen = screen,
+                                onScreenSelected = { screen = it }
+                            )
+                        }
+                    ) { paddingValues ->
+                        Box(modifier = Modifier.padding(paddingValues)) {
+                            when (screen) {
+                                AppScreen.Home -> HomeScreen(
+                                    state = state,
+                                    onContinueReading = {
+                                        selectedVerse = state.currentAyat
+                                        screen = AppScreen.Reader
+                                    },
+                                    onFamily = { screen = AppScreen.Family }
                                 )
-                                toastMessage = "Bookmark pribadi disimpan"
-                            },
-                            onUpdateFamilyProgress = {
-                                val time = SimpleDateFormat("HH:mm", Locale("id", "ID")).format(Date())
-                                state = state.copy(
-                                    currentAyat = selectedVerse,
-                                    lastUpdatedBy = "Anda",
-                                    lastUpdatedTime = time,
-                                    activities = listOf(
-                                        FamilyActivity("Anda", "memperbarui progress ke", state.currentSurah, selectedVerse, time)
-                                    ) + state.activities
+                                AppScreen.Reader -> ReaderScreen(
+                                    state = state,
+                                    selectedVerse = selectedVerse,
+                                    onSelectedVerseChanged = { selectedVerse = it },
+                                    onBack = { screen = AppScreen.Home },
+                                    onSetPersonalBookmark = {
+                                        state = state.copy(
+                                            personalBookmarkSurah = state.currentSurah,
+                                            personalBookmarkAyat = selectedVerse
+                                        )
+                                        toast = ToastMessage("Bookmark pribadi disimpan")
+                                    },
+                                    onUpdateFamilyProgress = {
+                                        val time = SimpleDateFormat("HH:mm", Locale("id", "ID")).format(Date())
+                                        state = state.copy(
+                                            currentAyat = selectedVerse,
+                                            lastUpdatedBy = "Anda",
+                                            lastUpdatedTime = time,
+                                            activities = listOf(
+                                                FamilyActivity("Anda", "memperbarui progress ke", state.currentSurah, selectedVerse, time)
+                                            ) + state.activities
+                                        )
+                                        toast = ToastMessage("Progress keluarga diperbarui")
+                                    }
                                 )
-                                toastMessage = "Progress keluarga diperbarui"
+                                AppScreen.Family -> FamilyScreen(
+                                    state = state,
+                                    onCopied = { toast = ToastMessage("Kode keluarga disalin") }
+                                )
+                                AppScreen.Settings -> SettingsScreen(
+                                    state = state,
+                                    onFontSizeChanged = { state = state.copy(fontSize = it) },
+                                    onTranslationChanged = { state = state.copy(showTranslation = it) },
+                                    onThemeChanged = { state = state.copy(readerTheme = it) }
+                                )
                             }
-                        )
-                        AppScreen.Family -> FamilyScreen(
-                            state = state,
-                            onCopied = { toastMessage = "Kode keluarga disalin" }
-                        )
-                        AppScreen.Settings -> SettingsScreen(
-                            state = state,
-                            onFontSizeChanged = { state = state.copy(fontSize = it) },
-                            onTranslationChanged = { state = state.copy(showTranslation = it) },
-                            onThemeChanged = { state = state.copy(readerTheme = it) }
-                        )
+                        }
                     }
                 }
             }
         }
 
         AnimatedVisibility(
-            visible = toastMessage != null,
+            visible = toast != null,
             modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 18.dp)
         ) {
+            ToastContent(toast)
+        }
+    }
+}
+
+@Composable
+private fun ToastContent(toast: ToastMessage?) {
+    var lastToast by remember { mutableStateOf<ToastMessage?>(null) }
+    if (toast != null) lastToast = toast
+    val t = lastToast ?: return
+    Text(
+        text = t.text,
+        color = QuranThemeColors.card,
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(if (t.isError) Color(0xFFC62828) else QuranThemeColors.emerald)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 14.sp
+    )
+}
+
+@Composable
+private fun WelcomeScreen(onStart: () -> Unit) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 36.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Image(
+                painter = painterResource(R.drawable.rainara),
+                contentDescription = "Rainara Quran",
+                modifier = Modifier.size(140.dp),
+                contentScale = ContentScale.Fit
+            )
+
+            Spacer(modifier = Modifier.height(32.dp))
             Text(
-                text = toastMessage.orEmpty(),
-                color = QuranThemeColors.card,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(999.dp))
-                    .background(QuranThemeColors.emerald)
-                    .padding(horizontal = 18.dp, vertical = 10.dp),
-                fontWeight = FontWeight.SemiBold
+                "Rainara Quran",
+                color = QuranThemeColors.ink,
+                fontFamily = FontFamily.Serif,
+                fontWeight = FontWeight.Bold,
+                fontSize = 34.sp,
+                lineHeight = 40.sp,
+                textAlign = TextAlign.Center
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+            Text(
+                "Pantau bacaan keluarga, bersama-sama.",
+                color = QuranThemeColors.muted,
+                fontSize = 16.sp,
+                lineHeight = 24.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 10.dp)
+            )
+
+            Spacer(modifier = Modifier.height(36.dp))
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                ChecklistItem(
+                    icon = { BookIcon() },
+                    text = "Baca Al-Quran",
+                    desc = "Tampilan bersih untuk ibadah yang fokus"
+                )
+                HorizontalDivider(color = QuranThemeColors.line, modifier = Modifier.padding(vertical = 8.dp))
+                ChecklistItem(
+                    icon = { PeopleIcon() },
+                    text = "Progress keluarga",
+                    desc = "Satu bookmark bersama untuk semua anggota"
+                )
+                HorizontalDivider(color = QuranThemeColors.line, modifier = Modifier.padding(vertical = 8.dp))
+                ChecklistItem(
+                    icon = { ShieldIcon() },
+                    text = "Tanpa iklan",
+                    desc = "Tenang, privat, dan tidak terasa komersial"
+                )
+            }
+
+            Spacer(modifier = Modifier.height(40.dp))
+            PrimaryButton(
+                text = "Mulai",
+                onClick = onStart,
+                modifier = Modifier.fillMaxWidth().height(56.dp)
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                "Aplikasi ini bebas iklan.",
+                color = QuranThemeColors.muted,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
             )
         }
     }
 }
 
 @Composable
-private fun WelcomeScreen(onStart: () -> Unit, onJoinFamily: () -> Unit) {
+private fun BookIcon() {
+    Canvas(modifier = Modifier.size(22.dp)) {
+        val c = QuranThemeColors.emerald
+        val w = size.width
+        val h = size.height
+        val p = 2.dp.toPx()
+        drawRoundRect(c, topLeft = androidx.compose.ui.geometry.Offset(p, p), size = androidx.compose.ui.geometry.Size(w - p * 2, h - p * 2), cornerRadius = androidx.compose.ui.geometry.CornerRadius(3.dp.toPx()), style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
+        drawLine(c, start = androidx.compose.ui.geometry.Offset(w / 2, p), end = androidx.compose.ui.geometry.Offset(w / 2, h - p), strokeWidth = 1.2.dp.toPx())
+    }
+}
+
+@Composable
+private fun PeopleIcon() {
+    Canvas(modifier = Modifier.size(22.dp)) {
+        val c = QuranThemeColors.emerald
+        val w = size.width
+        val h = size.height
+        val r1 = 3.dp.toPx()
+        val r2 = 2.2.dp.toPx()
+        drawCircle(c, radius = r1, center = androidx.compose.ui.geometry.Offset(w * 0.3f, h * 0.3f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2.dp.toPx()))
+        drawArc(c, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = androidx.compose.ui.geometry.Offset(w * 0.1f, h * 0.52f), size = androidx.compose.ui.geometry.Size(w * 0.4f, h * 0.28f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2.dp.toPx()))
+        drawCircle(c, radius = r2, center = androidx.compose.ui.geometry.Offset(w * 0.72f, h * 0.3f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2.dp.toPx()))
+        drawArc(c, startAngle = 180f, sweepAngle = 180f, useCenter = false, topLeft = androidx.compose.ui.geometry.Offset(w * 0.55f, h * 0.52f), size = androidx.compose.ui.geometry.Size(w * 0.34f, h * 0.28f), style = androidx.compose.ui.graphics.drawscope.Stroke(1.2.dp.toPx()))
+    }
+}
+
+@Composable
+private fun ShieldIcon() {
+    Canvas(modifier = Modifier.size(22.dp)) {
+        val c = QuranThemeColors.emerald
+        val w = size.width
+        val h = size.height
+        val p = 2.dp.toPx()
+        val path = androidx.compose.ui.graphics.Path().apply {
+            moveTo(w * 0.5f, p)
+            lineTo(w - p, h * 0.3f)
+            lineTo(w - p, h * 0.65f)
+            lineTo(w * 0.5f, h - p)
+            lineTo(p, h * 0.65f)
+            lineTo(p, h * 0.3f)
+            close()
+        }
+        drawPath(path, c, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
+        drawLine(c, start = androidx.compose.ui.geometry.Offset(w * 0.32f, h * 0.48f), end = androidx.compose.ui.geometry.Offset(w * 0.46f, h * 0.62f), strokeWidth = 1.5.dp.toPx())
+        drawLine(c, start = androidx.compose.ui.geometry.Offset(w * 0.46f, h * 0.62f), end = androidx.compose.ui.geometry.Offset(w * 0.7f, h * 0.35f), strokeWidth = 1.5.dp.toPx())
+    }
+}
+
+@Composable
+private fun LoginScreen(
+    authManager: AuthManager,
+    onToast: (String) -> Unit,
+    onError: (String) -> Unit
+) {
+    var username by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var isLoading by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+
     Column(
-        modifier = Modifier.fillMaxSize().statusBarsPadding().padding(28.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 28.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Box(
             modifier = Modifier
-                .size(96.dp)
-                .clip(RoundedCornerShape(28.dp))
+                .size(88.dp)
+                .clip(RoundedCornerShape(24.dp))
                 .background(QuranThemeColors.emeraldSoft),
             contentAlignment = Alignment.Center
         ) {
-            Text("QK", color = QuranThemeColors.emerald, fontSize = 30.sp, fontWeight = FontWeight.Bold)
+            Image(
+                painter = painterResource(R.drawable.rainara),
+                contentDescription = "Rainara Quran",
+                modifier = Modifier.size(74.dp),
+                contentScale = ContentScale.Fit
+            )
         }
 
-        Spacer(modifier = Modifier.height(28.dp))
-        Text("Quran Keluarga", style = androidx.compose.material3.MaterialTheme.typography.headlineLarge)
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(24.dp))
         Text(
-            "Pantau bacaan keluarga, bersama-sama.",
+            "Masuk ke Rainara",
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            color = QuranThemeColors.ink
+        )
+        Text(
+            "Akses khusus keluarga",
             color = QuranThemeColors.muted,
-            textAlign = TextAlign.Center
+            fontSize = 14.sp
         )
 
-        Spacer(modifier = Modifier.height(42.dp))
-        FeatureRow("Baca Al-Quran", "Tampilan bersih, tanpa iklan")
-        FeatureRow("Progress Keluarga", "Pantau bacaan bersama")
-        FeatureRow("Bookmark Otomatis", "Lanjut dari terakhir baca")
+        Spacer(modifier = Modifier.height(32.dp))
+        OutlinedTextField(
+            value = username,
+            onValueChange = { username = it.lowercase().trim() },
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = QuranThemeColors.emerald,
+                unfocusedBorderColor = QuranThemeColors.line,
+                focusedLabelColor = QuranThemeColors.emerald,
+                cursorColor = QuranThemeColors.emerald
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+        )
 
-        Spacer(modifier = Modifier.height(36.dp))
-        PrimaryButton(text = "Mulai", onClick = onStart)
         Spacer(modifier = Modifier.height(12.dp))
-        OutlinedButton(
-            onClick = onJoinFamily,
-            modifier = Modifier.fillMaxWidth().height(54.dp),
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+            shape = RoundedCornerShape(16.dp),
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = QuranThemeColors.emerald,
+                unfocusedBorderColor = QuranThemeColors.line,
+                focusedLabelColor = QuranThemeColors.emerald,
+                cursorColor = QuranThemeColors.emerald
+            ),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(onDone = {
+                if (username.isBlank()) {
+                    onError("Masukkan username")
+                } else if (username != FAMILY_USERNAME) {
+                    onError("Akun tidak ditemukan")
+                } else if (password.isBlank()) {
+                    onError("Masukkan password")
+                } else {
+                    isLoading = true
+                    scope.launch {
+                        val result = authManager.signIn("$username@keluarga.app", password)
+                        isLoading = false
+                        result.onFailure {
+                            if (authManager.currentUser == null) {
+                                onError("Password salah")
+                            }
+                        }
+                    }
+                }
+            })
+        )
+
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = {
+                if (username.isBlank()) {
+                    onError("Masukkan username")
+                    return@Button
+                }
+                if (username != FAMILY_USERNAME) {
+                    onError("Akun tidak ditemukan")
+                    return@Button
+                }
+                if (password.isBlank()) {
+                    onError("Masukkan password")
+                    return@Button
+                }
+                isLoading = true
+                scope.launch {
+                    val result = authManager.signIn("$username@keluarga.app", password)
+                    isLoading = false
+                    result.onFailure {
+                        if (authManager.currentUser == null) {
+                            onError("Password salah")
+                        }
+                    }
+                }
+            },
+            enabled = !isLoading,
+            modifier = Modifier.fillMaxWidth().height(56.dp),
             shape = RoundedCornerShape(18.dp),
-            border = BorderStroke(1.dp, QuranThemeColors.line)
+            colors = ButtonDefaults.buttonColors(containerColor = QuranThemeColors.emerald)
         ) {
-            Text("Gabung Keluarga", color = QuranThemeColors.ink, fontWeight = FontWeight.SemiBold)
+            if (isLoading) {
+                CircularProgressIndicator(
+                    color = QuranThemeColors.card,
+                    modifier = Modifier.size(24.dp),
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text("Masuk", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
         }
 
+        Spacer(modifier = Modifier.height(16.dp))
+        TextButton(onClick = { onToast("Fitur pendaftaran akan segera hadir untuk publik") }) {
+            Text("Daftar", color = QuranThemeColors.muted, fontSize = 14.sp)
+        }
+
+        Spacer(modifier = Modifier.height(30.dp))
+    }
+}
+
+@Composable
+private fun MemberPickerScreen(
+    onMemberPicked: (FamilyAccount) -> Unit,
+    onLogout: () -> Unit
+) {
+    var selectedId by remember { mutableStateOf("raffa") }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 24.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Spacer(modifier = Modifier.height(14.dp))
+        Text(
+            "Pilih Anggota",
+            fontWeight = FontWeight.Bold,
+            fontSize = 22.sp,
+            color = QuranThemeColors.ink
+        )
+        Text(
+            "Siapa yang akan membaca?",
+            color = QuranThemeColors.muted,
+            fontSize = 14.sp
+        )
+
         Spacer(modifier = Modifier.height(28.dp))
-        Text("Aplikasi ini bebas iklan.", color = QuranThemeColors.muted, fontSize = 12.sp)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            FamilyAccounts.all.forEach { account ->
+                MemberPickerCard(
+                    account = account,
+                    isSelected = account.id == selectedId,
+                    onClick = { selectedId = account.id }
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(32.dp))
+        Button(
+            onClick = {
+                FamilyAccounts.all.find { it.id == selectedId }?.let(onMemberPicked)
+            },
+            modifier = Modifier.fillMaxWidth().height(56.dp),
+            shape = RoundedCornerShape(18.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = QuranThemeColors.emerald)
+        ) {
+            Text("Lanjut", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+        TextButton(onClick = onLogout) {
+            Text("Keluar", color = QuranThemeColors.muted, fontSize = 14.sp)
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+    }
+}
+
+@Composable
+private fun MemberPickerCard(
+    account: FamilyAccount,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    val borderColor = if (isSelected) QuranThemeColors.emerald else QuranThemeColors.line
+
+    Card(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = QuranThemeColors.card),
+        border = BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(account.photoRes),
+                contentDescription = account.name,
+                modifier = Modifier.size(52.dp).clip(CircleShape),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(14.dp))
+            Column {
+                Text(
+                    account.name,
+                    fontWeight = FontWeight.SemiBold,
+                    color = QuranThemeColors.ink,
+                    fontSize = 14.sp,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    account.label,
+                    color = QuranThemeColors.muted,
+                    fontSize = 13.sp,
+                    lineHeight = 16.sp
+                )
+            }
+        }
     }
 }
 
@@ -631,6 +1041,26 @@ private fun FeatureRow(title: String, subtitle: String) {
         Text(subtitle, color = QuranThemeColors.muted, fontSize = 12.sp)
     }
     Spacer(modifier = Modifier.height(10.dp))
+}
+
+@Composable
+private fun ChecklistItem(icon: @Composable () -> Unit, text: String, desc: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(QuranThemeColors.emeraldSoft),
+            contentAlignment = Alignment.Center
+        ) {
+            icon()
+        }
+        Spacer(modifier = Modifier.width(14.dp))
+        Column {
+            Text(text, fontWeight = FontWeight.SemiBold, color = QuranThemeColors.ink, fontSize = 14.sp)
+            Text(desc, color = QuranThemeColors.muted, fontSize = 12.sp, lineHeight = 16.sp)
+        }
+    }
 }
 
 @Composable
