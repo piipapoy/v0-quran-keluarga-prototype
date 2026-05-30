@@ -19,6 +19,7 @@ object FamilyAccounts {
         FamilyAccount("nazhifa", "Nazhifa Qalbi Zhafira", "Teteh", R.drawable.teteh),
         FamilyAccount("raihan", "Raihan Rafiful Allam", "Kakak", R.drawable.kaka),
         FamilyAccount("raffa", "Raffa", "Handsome", R.drawable.handsome),
+        FamilyAccount("zaskia", "Zaskia", "Teteh", R.drawable.zaskia),
     )
 }
 

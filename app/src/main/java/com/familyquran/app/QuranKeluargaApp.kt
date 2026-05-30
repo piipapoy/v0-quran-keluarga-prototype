@@ -2,28 +2,21 @@ package com.familyquran.app
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.Crossfade
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -60,9 +53,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
@@ -290,6 +285,14 @@ fun RainaraQuranApp() {
 
         AnimatedVisibility(
             visible = toast != null,
+            enter = slideInVertically(
+                initialOffsetY = { -it - 80 },
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            ),
+            exit = slideOutVertically(
+                targetOffsetY = { -it - 80 },
+                animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing)
+            ),
             modifier = Modifier.align(Alignment.TopCenter).statusBarsPadding().padding(top = 18.dp)
         ) {
             ToastContent(toast)
@@ -455,6 +458,7 @@ private fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var isLoading by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
 
     Column(
         modifier = Modifier
@@ -466,22 +470,13 @@ private fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        Box(
-            modifier = Modifier
-                .size(88.dp)
-                .clip(RoundedCornerShape(24.dp))
-                .background(QuranThemeColors.emeraldSoft),
-            contentAlignment = Alignment.Center
-        ) {
-            Image(
-                painter = painterResource(R.drawable.rainara),
-                contentDescription = "Rainara Quran",
-                modifier = Modifier.size(74.dp),
-                contentScale = ContentScale.Fit
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Image(
+            painter = painterResource(R.drawable.rainara),
+            contentDescription = "Rainara Quran",
+            modifier = Modifier.size(80.dp),
+            contentScale = ContentScale.Fit
+        )
+        Spacer(modifier = Modifier.height(16.dp))
         Text(
             "Masuk ke Rainara",
             fontWeight = FontWeight.Bold,
@@ -527,26 +522,7 @@ private fun LoginScreen(
                 cursorColor = QuranThemeColors.emerald
             ),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-            keyboardActions = KeyboardActions(onDone = {
-                if (username.isBlank()) {
-                    onError("Masukkan username")
-                } else if (username != FAMILY_USERNAME) {
-                    onError("Akun tidak ditemukan")
-                } else if (password.isBlank()) {
-                    onError("Masukkan password")
-                } else {
-                    isLoading = true
-                    scope.launch {
-                        val result = authManager.signIn("$username@keluarga.app", password)
-                        isLoading = false
-                        result.onFailure {
-                            if (authManager.currentUser == null) {
-                                onError("Password salah")
-                            }
-                        }
-                    }
-                }
-            })
+            keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -607,57 +583,65 @@ private fun MemberPickerScreen(
 ) {
     var selectedId by remember { mutableStateOf("raffa") }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.height(14.dp))
-        Text(
-            "Pilih Anggota",
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            color = QuranThemeColors.ink
-        )
-        Text(
-            "Siapa yang akan membaca?",
-            color = QuranThemeColors.muted,
-            fontSize = 14.sp
-        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(
+                "Pilih Anggota",
+                fontWeight = FontWeight.Bold,
+                fontSize = 22.sp,
+                color = QuranThemeColors.ink
+            )
+            Text(
+                "Siapa yang akan membaca?",
+                color = QuranThemeColors.muted,
+                fontSize = 14.sp
+            )
 
-        Spacer(modifier = Modifier.height(28.dp))
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            FamilyAccounts.all.forEach { account ->
-                MemberPickerCard(
-                    account = account,
-                    isSelected = account.id == selectedId,
-                    onClick = { selectedId = account.id }
-                )
+            Spacer(modifier = Modifier.height(28.dp))
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                FamilyAccounts.all.chunked(3).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        row.forEach { account ->
+                            MemberPickerCard(
+                                account = account,
+                                isSelected = account.id == selectedId,
+                                onClick = { selectedId = account.id }
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+            Button(
+                onClick = {
+                    FamilyAccounts.all.find { it.id == selectedId }?.let(onMemberPicked)
+                },
+                modifier = Modifier.fillMaxWidth().height(52.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = QuranThemeColors.emerald)
+            ) {
+                Text("Lanjut", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+            TextButton(onClick = onLogout) {
+                Text("Keluar", color = QuranThemeColors.muted, fontSize = 14.sp)
             }
         }
-
-        Spacer(modifier = Modifier.height(32.dp))
-        Button(
-            onClick = {
-                FamilyAccounts.all.find { it.id == selectedId }?.let(onMemberPicked)
-            },
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            shape = RoundedCornerShape(18.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = QuranThemeColors.emerald)
-        ) {
-            Text("Lanjut", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-        TextButton(onClick = onLogout) {
-            Text("Keluar", color = QuranThemeColors.muted, fontSize = 14.sp)
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
     }
 }
 
@@ -671,38 +655,37 @@ private fun MemberPickerCard(
 
     Card(
         onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.width(104.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = QuranThemeColors.card),
         border = BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Image(
                 painter = painterResource(account.photoRes),
                 contentDescription = account.name,
-                modifier = Modifier.size(52.dp).clip(CircleShape),
+                modifier = Modifier.size(48.dp).clip(CircleShape),
                 contentScale = ContentScale.Crop
             )
-            Spacer(modifier = Modifier.width(14.dp))
-            Column {
-                Text(
-                    account.name,
-                    fontWeight = FontWeight.SemiBold,
-                    color = QuranThemeColors.ink,
-                    fontSize = 14.sp,
-                    lineHeight = 18.sp
-                )
-                Text(
-                    account.label,
-                    color = QuranThemeColors.muted,
-                    fontSize = 13.sp,
-                    lineHeight = 16.sp
-                )
-            }
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                account.name.substringBefore(" "),
+                fontWeight = FontWeight.SemiBold,
+                color = QuranThemeColors.ink,
+                fontSize = 13.sp,
+                lineHeight = 16.sp,
+                maxLines = 1
+            )
+            Text(
+                account.label,
+                color = QuranThemeColors.muted,
+                fontSize = 12.sp,
+                lineHeight = 14.sp
+            )
         }
     }
 }
@@ -1024,11 +1007,19 @@ private fun AppCard(content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier.fillMaxWidth().height(54.dp)) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val isPressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.96f else 1f,
+        animationSpec = spring(dampingRatio = 0.6f, stiffness = 400f),
+        label = "press_scale"
+    )
     Button(
         onClick = onClick,
-        modifier = modifier,
+        modifier = modifier.scale(scale),
         shape = RoundedCornerShape(18.dp),
-        colors = ButtonDefaults.buttonColors(containerColor = QuranThemeColors.emerald)
+        colors = ButtonDefaults.buttonColors(containerColor = QuranThemeColors.emerald),
+        interactionSource = interactionSource
     ) {
         Text(text, fontWeight = FontWeight.SemiBold)
     }
